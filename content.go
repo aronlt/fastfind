@@ -181,7 +181,7 @@ func (c *Content) reRenderRows(text string) {
 	index := 0
 	for _, entry := range c.entries {
 		command := entry.command.String()
-		if strings.Contains(command, text) || len(text) == 0{
+		if strings.Contains(command, text) || len(text) == 0 || strings.Contains(entry.explain.String(), text){
 			text := c.getRowText(index, entry)
 			index += 1
 			newRow = append(newRow, text)
