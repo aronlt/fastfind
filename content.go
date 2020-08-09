@@ -6,6 +6,7 @@ import (
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -56,9 +57,20 @@ func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string)
 	return content
 }
 
+type EntrySlice []*Entry
+func (e EntrySlice) Len() int           { return len(e) }
+func (e EntrySlice) Less(i, j int) bool {  return strings.Compare(e[i].command.String(), e[j].command.String()) <= 0 }
+func (e EntrySlice) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+
+
 // 加载并解析文件
 func (c *Content) loadContent() {
-	files := Files("files")
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		homedir = "/usr/local/bin/"
+	}
+	files := Files(homedir + "/.files")
+
 	for _, file := range files {
 		b, err := ReadContent(file)
 		if err != nil {
@@ -120,6 +132,7 @@ func (c *Content) loadContent() {
 			}
 		}
 	}
+	sort.Sort((EntrySlice)(c.entries))
 	c.listWidget.Rows = make([]string, 0, len(c.entries))
 	c.listEntries = make([]*Entry, 0, len(c.entries))
 	for i, entry := range c.entries {
@@ -145,12 +158,19 @@ func (c *Content) handleInputText() {
 
 // 展示
 func (c *Content) getRowText(i int, entry *Entry) string {
+	//if i + 1 < 10 {
+	//	return fmt.Sprintf("[%d.    ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
+	//} else if i + 1 < 100 {
+	//	return fmt.Sprintf("[%d.   ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
+	//} else {
+	//	return fmt.Sprintf("[%d.  ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
+	//}
 	if i + 1 < 10 {
-		return fmt.Sprintf("[%d.    ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
+		return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
 	} else if i + 1 < 100 {
-		return fmt.Sprintf("[%d.   ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
+		return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
 	} else {
-		return fmt.Sprintf("[%d.  ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
+		return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
 	}
 }
 
