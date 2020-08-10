@@ -28,6 +28,8 @@ type Content struct {
 	inputTextChan *chan string
 	// 记录命令
 	recHistoryCommandChan *chan string
+
+	finder MultiFind
 }
 
 func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string) *Content {
@@ -50,6 +52,7 @@ func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string)
 		contentWidget: contentWidget,
 		recHistoryCommandChan: recHistoryCommandChan,
 		inputTextChan: inputTextChan,
+		finder: &ForceFind{},
 	}
 
 	content.loadContent()
@@ -135,8 +138,8 @@ func (c *Content) loadContent() {
 	sort.Sort((EntrySlice)(c.entries))
 	c.listWidget.Rows = make([]string, 0, len(c.entries))
 	c.listEntries = make([]*Entry, 0, len(c.entries))
-	for i, entry := range c.entries {
-		text := c.getRowText(i, entry)
+	for _, entry := range c.entries {
+		text := c.getRowText(entry)
 		c.listWidget.Rows = append(c.listWidget.Rows, text)
 		c.listEntries = append(c.listEntries, entry)
 	}
@@ -157,7 +160,7 @@ func (c *Content) handleInputText() {
 }
 
 // 展示
-func (c *Content) getRowText(i int, entry *Entry) string {
+func (c *Content) getRowText(entry *Entry) string {
 	//if i + 1 < 10 {
 	//	return fmt.Sprintf("[%d.    ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
 	//} else if i + 1 < 100 {
@@ -165,28 +168,20 @@ func (c *Content) getRowText(i int, entry *Entry) string {
 	//} else {
 	//	return fmt.Sprintf("[%d.  ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
 	//}
-	if i + 1 < 10 {
-		return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
-	} else if i + 1 < 100 {
-		return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
-	} else {
-		return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
-	}
+	return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
 }
 
 // 匹配列表
 func (c *Content) reRenderRows(text string) {
 	newRow := make([]string, 0)
 	newEntries := make([]*Entry, 0)
-	index := 0
-	for _, entry := range c.entries {
-		command := entry.command.String()
-		if strings.Contains(command, text) || len(text) == 0 || strings.Contains(entry.explain.String(), text){
-			text := c.getRowText(index, entry)
-			index += 1
-			newRow = append(newRow, text)
-			newEntries = append(newEntries, entry)
-		}
+
+	matchEntries := c.finder.Match(c.entries, text)
+
+	for _, entry := range matchEntries{
+		text := c.getRowText(entry)
+		newRow = append(newRow, text)
+		newEntries = append(newEntries, entry)
 	}
 	c.listWidget.Rows = newRow
 	c.listEntries = newEntries
