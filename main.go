@@ -5,13 +5,21 @@
 package main
 
 import (
+	"flag"
 	ui "github.com/gizak/termui/v3"
 	"log"
 )
 
 var cursor = 0
+var short = false
+
+func init() {
+	flag.BoolVar(&short, "short", false, "display short")
+}
 
 func main() {
+	flag.Parse()
+
 	if err := ui.Init(); err != nil {
 		log.Fatalf("failed to initialize termui: %v", err)
 	}
@@ -26,7 +34,9 @@ func main() {
 	elems := make([]ui.Drawable, 0)
 	input.Render(&elems)
 	content.Render(&elems)
-	history.Render(&elems)
+	if !short {
+		history.Render(&elems)
+	}
 	ui.Render(elems...)
 
 	uiEvents := ui.PollEvents()
@@ -36,10 +46,14 @@ func main() {
 		var repeat = true
 
 		for repeat {
-			if cursor == 0 {
+			if short {
 				elems[1], next, repeat = content.HandleEvent(e)
 			} else {
-				elems[2], next, repeat = history.HandleEvent(e)
+				if cursor == 0 {
+					elems[1], next, repeat = content.HandleEvent(e)
+				} else {
+					elems[2], next, repeat = history.HandleEvent(e)
+				}
 			}
 		}
 		if next {

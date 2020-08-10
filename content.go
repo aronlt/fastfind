@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const maxLineNum = 80
+var maxLineNum = 80
 
 type Entry struct {
 	command bytes.Buffer
@@ -40,12 +40,21 @@ func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string)
 	listWidget.TextStyle = ui.NewStyle(ui.ColorYellow)
 	listWidget.BorderStyle.Fg = ui.ColorRed
 	listWidget.WrapText = false
-	listWidget.SetRect(0, 5, 170, 40)
+	if short {
+		listWidget.SetRect(0, 5, 60, 40)
+		maxLineNum -= 40
+	} else {
+		listWidget.SetRect(0, 5, 170, 40)
+	}
 
 	contentWidget := widgets.NewParagraph()
 	contentWidget.Title = "Content"
 	contentWidget.Text = ""
-	contentWidget.SetRect(0, 5, 200, 40)
+	if short {
+		contentWidget.SetRect(0, 5, 60, 40)
+	} else {
+		contentWidget.SetRect(0, 5, 170, 40)
+	}
 	contentWidget.BorderStyle.Fg = ui.ColorRed
 
 	content := &Content{
@@ -85,13 +94,6 @@ func (c *Content) loadContent() {
 		}
 		content := string(b)
 		lines := strings.Split(content, "\n")
-		newLines := make([]string, 0)
-		for _, line := range lines {
-			if len(line) != 0 {
-				newLines = append(newLines, line)
-			}
-		}
-		lines = newLines
 
 		var entry *Entry
 
@@ -117,7 +119,7 @@ func (c *Content) loadContent() {
 			if entry == nil {
 				continue
 			}
-			if line == "" {
+			if line == "" && index < 2{
 				continue
 			}
 			if index == 0 {
@@ -176,6 +178,9 @@ func (c *Content) getRowText(entry *Entry) string {
 	//} else {
 	//	return fmt.Sprintf("[%d.  ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
 	//}
+	if short {
+		return fmt.Sprintf("[%s](fg:blue,mod:bold)",  entry.command.String())
+	}
 	return fmt.Sprintf("[%s](fg:blue,mod:bold) [%s](fg:red,mod:light)",  entry.command.String(), entry.explain.String())
 }
 

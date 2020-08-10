@@ -19,7 +19,11 @@ func NewInput(inputTextChan *chan string, historyCommandChan *chan string) *Inpu
 	widget := widgets.NewParagraph()
 	widget.Title = "FastFind"
 	widget.Text = "[Enter what you want to search](fg:blue,mod:bold)"
-	widget.SetRect(0, 0, 220, 5)
+	if short {
+		widget.SetRect(0, 0, 60, 5)
+	} else {
+		widget.SetRect(0, 0, 220, 5)
+	}
 	widget.BorderStyle.Fg = ui.ColorYellow
 	input := &Input{
 		widget: widget,
