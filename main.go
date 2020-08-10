@@ -42,6 +42,9 @@ func main() {
 	uiEvents := ui.PollEvents()
 	for {
 		e := <-uiEvents
+		if e.Type != ui.KeyboardEvent {
+			continue
+		}
 		var next bool
 		var repeat = true
 
