@@ -92,6 +92,14 @@ func (i *Input) backspaceCursor() {
 	}
 }
 
+
+func (i *Input) reset() {
+	i.locker.Lock()
+	defer i.locker.Unlock()
+	i.leftBuffer.Reset()
+	i.rightBuffer.Reset()
+}
+
 func (i *Input) handleHistoryCommand() {
 	for {
 		select {
@@ -106,6 +114,7 @@ func (i *Input) handleHistoryCommand() {
 	}
 }
 
+
 func (i *Input) HandleEvent(e ui.Event) ui.Drawable {
 	if e.Type == ui.KeyboardEvent {
 		switch e.ID {
@@ -118,6 +127,7 @@ func (i *Input) HandleEvent(e ui.Event) ui.Drawable {
 		case "<Right>":
 			i.cursorRight()
 		case "<Escape>":
+			i.reset()
 		case "<Tab>":
 			i.locker.Lock()
 			i.leftBuffer.WriteString("\t")

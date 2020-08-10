@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+const maxLineNum = 80
 
 type Entry struct {
 	command bytes.Buffer
@@ -66,8 +67,10 @@ func (e EntrySlice) Less(i, j int) bool {  return strings.Compare(e[i].command.S
 func (e EntrySlice) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 
 
+
 // 加载并解析文件
 func (c *Content) loadContent() {
+	c.entries = make([]*Entry, 0)
 	homedir, err := os.UserHomeDir()
 	if err != nil {
 		homedir = "/usr/local/bin/"
@@ -75,6 +78,7 @@ func (c *Content) loadContent() {
 	files := Files(homedir + "/.files")
 
 	for _, file := range files {
+		entries := make([]*Entry, 0)
 		b, err := ReadContent(file)
 		if err != nil {
 			return
@@ -113,13 +117,16 @@ func (c *Content) loadContent() {
 			if entry == nil {
 				continue
 			}
+			if line == "" {
+				continue
+			}
 			if index == 0 {
-				if len(line) > 60 {
-					entry.command.WriteString(line[0:40])
+				if len(line) > maxLineNum {
+					entry.command.WriteString(line[0:maxLineNum])
 				} else {
 					entry.command.Reset()
 					entry.command.WriteString(line)
-					for entry.command.Len() < 60 {
+					for entry.command.Len() < maxLineNum {
 						entry.command.WriteString(" ")
 					}
 				}
@@ -131,11 +138,12 @@ func (c *Content) loadContent() {
 			}
 
 			if i == len(lines) - 1 && entry.command.Len() != 0 {
-				c.entries = append(c.entries, entry)
+				entries = append(entries, entry)
 			}
 		}
+		sort.Sort((EntrySlice)(entries))
+		c.entries = append(c.entries, entries...)
 	}
-	sort.Sort((EntrySlice)(c.entries))
 	c.listWidget.Rows = make([]string, 0, len(c.entries))
 	c.listEntries = make([]*Entry, 0, len(c.entries))
 	for _, entry := range c.entries {
@@ -205,6 +213,9 @@ func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 		switch e.ID {
 		case "<C-c>":
 			os.Exit(-1)
+		case "<C-r>":
+			c.loadContent()
+			return c.listWidget, false, false
 		case "<Enter>":
 			if len(c.listWidget.Rows) > 0 {
 				c.contentWidget.Text = c.listEntries[c.listWidget.SelectedRow].detail.String()
