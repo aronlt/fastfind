@@ -99,8 +99,10 @@ func (c *Content) loadContent() {
 
 		index := -1
 		for i, line := range lines {
-			line = strings.Trim(line, "\t")
-			line = strings.Trim(line, " ")
+			if index == 0 || index == 1 {
+				line = strings.Trim(line, "\t")
+				line = strings.Trim(line, " ")
+			}
 			if strings.HasPrefix(line, "%%##") {
 				if entry != nil {
 					c.entries = append(c.entries, entry)
