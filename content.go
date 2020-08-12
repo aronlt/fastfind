@@ -12,24 +12,38 @@ import (
 
 var maxLineNum = 80
 
+var maxContentLineSize = 30
+
 type Entry struct {
 	command bytes.Buffer
 	explain bytes.Buffer
 	detail bytes.Buffer
 }
 
+type WidgetType int32
+
+const (
+	ListType      WidgetType = 0
+	ContentType      WidgetType = 1
+)
+
 type Content struct {
 	// 展示列表
 	listWidget *widgets.List
 	// 展示详情
 	contentWidget *widgets.Paragraph
+	contentStartIdx int
+	contentEndIdx int
+
+	widgetType WidgetType
+
 	listEntries []*Entry
 	entries []*Entry
 	// 用于匹配命令
 	inputTextChan *chan string
 	// 记录命令
 	recHistoryCommandChan *chan string
-
+	// 搜索接口
 	finder MultiFind
 }
 
@@ -62,6 +76,9 @@ func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string)
 		contentWidget: contentWidget,
 		recHistoryCommandChan: recHistoryCommandChan,
 		inputTextChan: inputTextChan,
+		contentStartIdx: 0,
+		contentEndIdx: 0,
+		widgetType: ListType,
 		finder: &ForceFind{},
 	}
 
@@ -148,6 +165,9 @@ func (c *Content) loadContent() {
 		sort.Sort((EntrySlice)(entries))
 		c.entries = append(c.entries, entries...)
 	}
+	if len(c.entries) == 0 {
+		panic("读取空的内容")
+	}
 	c.listWidget.Rows = make([]string, 0, len(c.entries))
 	c.listEntries = make([]*Entry, 0, len(c.entries))
 	for _, entry := range c.entries {
@@ -173,13 +193,6 @@ func (c *Content) handleInputText() {
 
 // 展示
 func (c *Content) getRowText(entry *Entry) string {
-	//if i + 1 < 10 {
-	//	return fmt.Sprintf("[%d.    ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
-	//} else if i + 1 < 100 {
-	//	return fmt.Sprintf("[%d.   ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
-	//} else {
-	//	return fmt.Sprintf("[%d.  ](fg:blue,mod:bold) [%s](fg:blue,mod:bold) [%s](fg:red,mod:light)", i+1, entry.command.String(), entry.explain.String())
-	//}
 	if short {
 		return fmt.Sprintf("[%s](fg:blue,mod:bold)",  entry.command.String())
 	}
@@ -213,6 +226,65 @@ func (c *Content) setColor() {
 	}
 }
 
+func (c *Content)contentDownPage() {
+	idx := c.listWidget.SelectedRow
+	lines := strings.Split(c.listEntries[idx].detail.String(), "\n")
+	if c.contentEndIdx >= len(lines) {
+		return
+	}
+
+	c.contentEndIdx += maxContentLineSize
+	c.contentStartIdx += maxContentLineSize
+	if c.contentEndIdx > len(lines) {
+		c.contentEndIdx = len(lines)
+	}
+
+	if c.contentStartIdx > len(lines) {
+		c.contentStartIdx = len(lines)
+	}
+	c.contentWidget.Text = c.decorateText(idx, c.contentStartIdx, c.contentEndIdx)
+}
+
+func (c *Content)contentUpPage() {
+	if c.contentStartIdx == 0 {
+		return
+	}
+	idx := c.listWidget.SelectedRow
+	c.contentStartIdx -= maxContentLineSize
+	c.contentEndIdx -= maxContentLineSize
+	if c.contentEndIdx < 0 {
+		c.contentEndIdx = 0
+	}
+	if c.contentStartIdx < 0 {
+		c.contentStartIdx = 0
+	}
+	c.contentWidget.Text = c.decorateText(idx, c.contentStartIdx, c.contentEndIdx)
+}
+
+func (c *Content)contentInitPage() {
+	idx := c.listWidget.SelectedRow
+	lines := strings.Split(c.listEntries[idx].detail.String(), "\n")
+	c.contentStartIdx = 0
+	c.contentEndIdx = maxContentLineSize * 2
+	if c.contentEndIdx > len(lines) {
+		c.contentEndIdx = len(lines)
+	}
+	c.contentWidget.Text = c.decorateText(idx, c.contentStartIdx, c.contentEndIdx)
+}
+
+func (c *Content)decorateText(idx int, start int, end int) string {
+	lines := strings.Split(c.listEntries[idx].detail.String(), "\n")[start: end]
+	return "[" + c.listEntries[idx].command.String() + "](fg:blue,mod:bold)" + "\n" +
+		"[" + c.listEntries[idx].explain.String() + "](fg:blue,mod:bold)" + "\n" +
+		strings.Join(lines, "\n")
+}
+
+func (c *Content)reset() {
+	c.contentStartIdx = 0
+	c.contentEndIdx = 0
+	c.widgetType = ListType
+}
+
 // 第一个bool表示要不要下一个组件渲染，第二个bool表示是不是调换了输入框
 func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 	c.setColor()
@@ -221,53 +293,50 @@ func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 		case "<C-c>":
 			os.Exit(-1)
 		case "<C-r>":
+			c.reset()
 			c.loadContent()
 			return c.listWidget, false, false
 		case "<Enter>":
-			if len(c.listWidget.Rows) > 0 {
-				c.contentWidget.Text = c.listEntries[c.listWidget.SelectedRow].detail.String()
+			if c.widgetType == ListType {
+				c.contentInitPage()
+				c.widgetType = ContentType
 				// 记录
 				*c.recHistoryCommandChan <- c.listEntries[c.listWidget.SelectedRow].command.String()
+			}
+			return c.contentWidget, false, false
+		case "<Down>":
+			if c.widgetType == ListType {
+				c.listWidget.ScrollDown()
+				return c.listWidget, false, false
+			} else {
+				c.contentDownPage()
 				return c.contentWidget, false, false
 			}
-		case "<Down>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollDown()
-			}
 		case "<Up>":
-			if len(c.listWidget.Rows) > 0 {
+			if c.widgetType == ListType {
 				c.listWidget.ScrollUp()
+				return c.listWidget, false, false
+			} else {
+				c.contentUpPage()
+				return c.contentWidget, false, false
 			}
 		case "<Left>":
+			c.setColor()
+			if c.widgetType == ListType {
+				return c.listWidget, false, false
+			} else {
+				return c.contentWidget, false, false
+			}
 		case "<Right>":
 			cursor = 1
 			c.setColor()
-			return c.listWidget, true, true
-		case "<C-d>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollHalfPageDown()
-			}
-		case "<C-u>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollHalfPageUp()
-			}
-		case "<C-f>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollPageDown()
-			}
-		case "<C-b>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollPageUp()
-			}
-		case "<Home>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollTop()
-			}
-		case "<End>":
-			if len(c.listWidget.Rows) > 0 {
-				c.listWidget.ScrollBottom()
+			if c.widgetType == ListType {
+				return c.listWidget, true, true
+			} else {
+				return c.contentWidget, true, true
 			}
 		default:
+			c.reset()
 			return c.listWidget, true, false
 		}
 	}

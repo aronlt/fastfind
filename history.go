@@ -109,30 +109,9 @@ func (i *History) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 			i.setColor()
 			return i.widget, true, true
 		case "<Right>":
-		case "<C-d>":
-			if len(i.widget.Rows) > 0 {
-				i.widget.ScrollHalfPageDown()
-			}
-		case "<C-u>":
-			if len(i.widget.Rows) > 0 {
-				i.widget.ScrollHalfPageUp()
-			}
-		case "<C-f>":
-			if len(i.widget.Rows) > 0 {
-				i.widget.ScrollPageDown()
-			}
-		case "<C-b>":
-			if len(i.widget.Rows) > 0 {
-				i.widget.ScrollPageUp()
-			}
-		case "<Home>":
-			if len(i.widget.Rows) > 0 {
-				i.widget.ScrollTop()
-			}
-		case "<End>":
-			if len(i.widget.Rows) > 0 {
-				i.widget.ScrollBottom()
-			}
+			cursor = 0
+			i.setColor()
+			return i.widget, false, false
 		default:
 			return i.widget, true, false
 		}
