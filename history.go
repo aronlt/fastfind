@@ -109,9 +109,9 @@ func (i *History) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 			i.setColor()
 			return i.widget, true, true
 		case "<Right>":
-			cursor = 0
+			cursor = 1
 			i.setColor()
-			return i.widget, false, false
+			return i.widget, true, false
 		default:
 			return i.widget, true, false
 		}

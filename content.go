@@ -12,7 +12,8 @@ import (
 
 var maxLineNum = 80
 
-var maxContentLineSize = 30
+var maxContentLineSize = 1
+var displayLineSize = 30
 
 type Entry struct {
 	command bytes.Buffer
@@ -233,15 +234,22 @@ func (c *Content)contentDownPage() {
 		return
 	}
 
-	c.contentEndIdx += maxContentLineSize
-	c.contentStartIdx += maxContentLineSize
-	if c.contentEndIdx > len(lines) {
-		c.contentEndIdx = len(lines)
+	oldStart := c.contentStartIdx
+	oldEnd := c.contentEndIdx
+
+	// 满足往下走的条件
+	if c.contentStartIdx < len(lines) && c.contentStartIdx + maxContentLineSize < len(lines) &&
+		c.contentEndIdx < len(lines) && c.contentEndIdx + maxContentLineSize < len(lines) {
+		c.contentStartIdx += maxContentLineSize
+		c.contentEndIdx += maxContentLineSize
 	}
 
-	if c.contentStartIdx > len(lines) {
-		c.contentStartIdx = len(lines)
+	if c.contentStartIdx >= c.contentEndIdx {
+		c.contentStartIdx = oldStart
+		c.contentEndIdx = oldEnd
 	}
+
+
 	c.contentWidget.Text = c.decorateText(idx, c.contentStartIdx, c.contentEndIdx)
 }
 
@@ -250,13 +258,17 @@ func (c *Content)contentUpPage() {
 		return
 	}
 	idx := c.listWidget.SelectedRow
-	c.contentStartIdx -= maxContentLineSize
-	c.contentEndIdx -= maxContentLineSize
-	if c.contentEndIdx < 0 {
-		c.contentEndIdx = 0
+	oldStart := c.contentStartIdx
+	oldEnd := c.contentEndIdx
+
+	if c.contentEndIdx > 0 &&  c.contentEndIdx - maxContentLineSize > 0  && c.contentStartIdx > 0 && c.contentStartIdx - maxContentLineSize > 0 {
+		c.contentEndIdx -= maxContentLineSize
+		c.contentStartIdx -= maxContentLineSize
 	}
-	if c.contentStartIdx < 0 {
-		c.contentStartIdx = 0
+
+	if c.contentStartIdx >= c.contentEndIdx {
+		c.contentStartIdx = oldStart
+		c.contentEndIdx = oldEnd
 	}
 	c.contentWidget.Text = c.decorateText(idx, c.contentStartIdx, c.contentEndIdx)
 }
@@ -265,7 +277,7 @@ func (c *Content)contentInitPage() {
 	idx := c.listWidget.SelectedRow
 	lines := strings.Split(c.listEntries[idx].detail.String(), "\n")
 	c.contentStartIdx = 0
-	c.contentEndIdx = maxContentLineSize * 2
+	c.contentEndIdx = displayLineSize
 	if c.contentEndIdx > len(lines) {
 		c.contentEndIdx = len(lines)
 	}
@@ -297,28 +309,34 @@ func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 			c.loadContent()
 			return c.listWidget, false, false
 		case "<Enter>":
-			if c.widgetType == ListType {
-				c.contentInitPage()
-				c.widgetType = ContentType
-				// 记录
-				*c.recHistoryCommandChan <- c.listEntries[c.listWidget.SelectedRow].command.String()
+			if len(c.listWidget.Rows) > 0 {
+				if c.widgetType == ListType {
+					c.contentInitPage()
+					c.widgetType = ContentType
+					// 记录
+					*c.recHistoryCommandChan <- c.listEntries[c.listWidget.SelectedRow].command.String()
+				}
 			}
 			return c.contentWidget, false, false
 		case "<Down>":
-			if c.widgetType == ListType {
-				c.listWidget.ScrollDown()
-				return c.listWidget, false, false
-			} else {
-				c.contentDownPage()
-				return c.contentWidget, false, false
+			if len(c.listWidget.Rows) > 0 {
+				if c.widgetType == ListType {
+					c.listWidget.ScrollDown()
+					return c.listWidget, false, false
+				} else {
+					c.contentDownPage()
+					return c.contentWidget, false, false
+				}
 			}
 		case "<Up>":
-			if c.widgetType == ListType {
-				c.listWidget.ScrollUp()
-				return c.listWidget, false, false
-			} else {
-				c.contentUpPage()
-				return c.contentWidget, false, false
+			if len(c.listWidget.Rows) > 0 {
+				if c.widgetType == ListType {
+					c.listWidget.ScrollUp()
+					return c.listWidget, false, false
+				} else {
+					c.contentUpPage()
+					return c.contentWidget, false, false
+				}
 			}
 		case "<Left>":
 			c.setColor()
