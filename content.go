@@ -6,6 +6,7 @@ import (
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -97,12 +98,18 @@ func (e EntrySlice) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 
 // 加载并解析文件
 func (c *Content) loadContent() {
+
+	var files []string
 	c.entries = make([]*Entry, 0)
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		homedir = "/usr/local/bin/"
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux"{
+		homedir, err := os.UserHomeDir()
+		if err != nil {
+			homedir = "/usr/local/bin/"
+		}
+		files = Files(homedir + "/.files")
+	} else {
+		panic("nonsupport system")
 	}
-	files := Files(homedir + "/.files")
 
 	for _, file := range files {
 		entries := make([]*Entry, 0)
