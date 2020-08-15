@@ -7,9 +7,7 @@ golang实现的命令行速查软件，辅助日常终端开发
 #### mac
 ```shell script
 wget https://github.com/hellolintong/fastfind/releases/download/V1.0/fastfind_macos.tar.gz
-
 tar xzvf fastfind_maxos.tar.gz
-
 cd fastfind_maxos && sh install.sh
 ```
 
