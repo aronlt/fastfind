@@ -6,6 +6,7 @@ import (
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -150,6 +151,9 @@ func (c *Content) loadContent() {
 				continue
 			}
 			if index == 0 {
+				file = filepath.Base(file)
+				file = strings.Trim(file, ".txt")
+				line  = file + "-" + line
 				if len(line) > maxLineNum {
 					entry.command.WriteString(line[0:maxLineNum])
 				} else {
