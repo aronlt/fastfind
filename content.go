@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"os"
-	"path/filepath"
-	"runtime"
-	"sort"
 	"strings"
 )
 
@@ -16,12 +12,6 @@ var maxLineNum = 80
 
 var maxContentLineSize = 1
 var displayLineSize = 30
-
-type Entry struct {
-	command bytes.Buffer
-	explain bytes.Buffer
-	detail bytes.Buffer
-}
 
 type WidgetType int32
 
@@ -90,96 +80,9 @@ func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string)
 	return content
 }
 
-type EntrySlice []*Entry
-func (e EntrySlice) Len() int           { return len(e) }
-func (e EntrySlice) Less(i, j int) bool {  return strings.Compare(e[i].command.String(), e[j].command.String()) <= 0 }
-func (e EntrySlice) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
-
-
-
 // 加载并解析文件
 func (c *Content) loadContent() {
-
-	var files []string
-	c.entries = make([]*Entry, 0)
-	if runtime.GOOS == "darwin" || runtime.GOOS == "linux"{
-		homedir, err := os.UserHomeDir()
-		if err != nil {
-			homedir = "/usr/local/bin/"
-		}
-		files = Files(homedir + "/.files")
-	} else {
-		panic("nonsupport system")
-	}
-
-	for _, file := range files {
-		entries := make([]*Entry, 0)
-		b, err := ReadContent(file)
-		if err != nil {
-			return
-		}
-		content := string(b)
-		lines := strings.Split(content, "\n")
-
-		var entry *Entry
-
-		index := -1
-		for i, line := range lines {
-			if index == 0 || index == 1 {
-				line = strings.Trim(line, "\t")
-				line = strings.Trim(line, " ")
-			}
-			if strings.HasPrefix(line, "%%##") {
-				if entry != nil {
-					c.entries = append(c.entries, entry)
-				}
-				entry = &Entry{
-					command: bytes.Buffer{},
-					explain: bytes.Buffer{},
-					detail:  bytes.Buffer{},
-				}
-				index = -1
-				continue
-			} else if strings.HasPrefix(line, "%%") {
-				index += 1
-				line = line[2:]
-			}
-			if entry == nil {
-				continue
-			}
-			if line == "" && index < 2{
-				continue
-			}
-			if index == 0 {
-				file = filepath.Base(file)
-				file = strings.Trim(file, ".txt")
-				line  = file + "-" + line
-				if len(line) > maxLineNum {
-					entry.command.WriteString(line[0:maxLineNum])
-				} else {
-					entry.command.Reset()
-					entry.command.WriteString(line)
-					for entry.command.Len() < maxLineNum {
-						entry.command.WriteString(" ")
-					}
-				}
-			} else if index == 1{
-				entry.explain.WriteString(line)
-			} else {
-				entry.detail.WriteString(line)
-				entry.detail.WriteString("\n")
-			}
-
-			if i == len(lines) - 1 && entry.command.Len() != 0 {
-				entries = append(entries, entry)
-			}
-		}
-		sort.Sort((EntrySlice)(entries))
-		c.entries = append(c.entries, entries...)
-	}
-	if len(c.entries) == 0 {
-		panic("读取空的内容")
-	}
+	c.entries = LoadContent()
 	c.listWidget.Rows = make([]string, 0, len(c.entries))
 	c.listEntries = make([]*Entry, 0, len(c.entries))
 	for _, entry := range c.entries {
@@ -260,7 +163,6 @@ func (c *Content)contentDownPage() {
 		c.contentEndIdx = oldEnd
 	}
 
-
 	c.contentWidget.Text = c.decorateText(idx, c.contentStartIdx, c.contentEndIdx)
 }
 
@@ -314,6 +216,7 @@ func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 	if e.Type == ui.KeyboardEvent {
 		switch e.ID {
 		case "<C-c>":
+			ui.Close()
 			os.Exit(-1)
 		case "<C-r>":
 			c.reset()

@@ -88,6 +88,7 @@ func (i *History) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 		defer i.locker.Unlock()
 		switch e.ID {
 		case "<C-c>":
+			ui.Close()
 			os.Exit(-1)
 		case "<Enter>":
 			if len(i.widget.Rows) > 0 {
