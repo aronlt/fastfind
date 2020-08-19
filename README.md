@@ -6,14 +6,14 @@ golang实现的命令行速查软件，辅助日常终端开发
 下载对应的release版本 tar包，然后执行install.sh脚本即可。
 #### mac
 ```shell script
-wget https://github.com/hellolintong/fastfind/releases/download/V1.0/fastfind_macos.tar.gz
+wget https://github.com/hellolintong/fastfind/releases/download/V2.0/fastfind_macos.tar.gz
 tar xzvf fastfind_maxos.tar.gz
 cd fastfind_maxos && sh install.sh
 ```
 
 #### linux
 ```shell script
-wget https://github.com/hellolintong/fastfind/releases/download/V1.0/fastfind_linux.tar.gz
+wget https://github.com/hellolintong/fastfind/releases/download/V2.0/fastfind_linux.tar.gz
 tar xzvf fastfind_maxos.tar.gz
 cd fastfind_maxos && sh install.sh
 ```
