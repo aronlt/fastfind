@@ -20,6 +20,17 @@ cd fastfind_maxos && sh install.sh
 
 ### 使用方法
 
+#### shell模式
+```shell script
+./fastfind
+```
+在shell模式下，输入exit退出
+![Xnip2020-08-19_16-28-25.jpg](images/Xnip2020-08-19_16-28-25.jpg)
+
+#### 全屏模式
+```shell script
+./fastfind --full=true
+```
 fastfind有三个区域，输入区和展示区和历史命令区。
 
 在终端输入fastfind后界面如下：
@@ -33,13 +44,19 @@ fastfind有三个区域，输入区和展示区和历史命令区。
 支持历史记录，使用左右方向键在展示区和历史命令区跳转，上下键选择。
 
 
+对于小屏幕的设备，可以使用简短模式
+```shell script
+./fastfind --full=true --short=true
+```
+![Xnip2020-08-19_16-30-18.jpg](images/Xnip2020-08-19_16-30-18.jpg)
 
-### 快捷键
+
+
+* 快捷键
 
 ctrl + r: 更新记录文件后热加载
 
 Esc: 快速清空输入区
-
 
 
 ### 记录文件
