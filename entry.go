@@ -78,7 +78,10 @@ func LoadContent() []*Entry {
 			}
 			if index == 0 {
 				file = filepath.Base(file)
-				file = strings.Trim(file, ".txt")
+				elem := strings.Split(file, ".")
+				if len(elem) > 1 {
+					file = strings.Join(elem[0:len(elem) - 1], "")
+				}
 				line  = file + "-" + line
 				if len(line) > maxLineNum {
 					entry.command.WriteString(line[0:maxLineNum])

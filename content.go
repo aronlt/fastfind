@@ -4,6 +4,7 @@ import (
 	"fmt"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
+	"math/rand"
 	"os"
 	"strings"
 )
@@ -28,6 +29,7 @@ type Content struct {
 	contentStartIdx int
 	contentEndIdx int
 
+	// 当前所处的模式
 	widgetType WidgetType
 
 	listEntries []*Entry
@@ -38,7 +40,11 @@ type Content struct {
 	recHistoryCommandChan *chan string
 	// 搜索接口
 	finder MultiFind
+	// 处理函数
+	handlerMap map[string]InputHandler
 }
+
+type InputHandler func(c *Content) (ui.Drawable, bool, bool)
 
 func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string) *Content {
 	listWidget := widgets.NewList()
@@ -73,11 +79,96 @@ func NewContent(inputTextChan *chan string,  recHistoryCommandChan *chan string)
 		contentEndIdx: 0,
 		widgetType: ListType,
 		finder: &ForceFind{},
+		handlerMap: make(map[string]InputHandler, 0),
 	}
 
+	content.register()
 	content.loadContent()
 	go content.handleInputText()
 	return content
+}
+
+func (c *Content) register() {
+
+	c.handlerMap["<C-r>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		c.reset()
+		c.loadContent()
+		return c.listWidget, false, false
+	}
+
+	c.handlerMap["<PageDown>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		c.reset()
+		c.widgetType = ContentType
+		c.randomPick()
+		c.contentInitPage()
+		return c.contentWidget, false, false
+	}
+
+	c.handlerMap["<PageUp>"] = c.handlerMap["<PageDown>"]
+
+	c.handlerMap["<Enter>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		if len(c.listWidget.Rows) > 0 {
+			if c.widgetType == ListType {
+				c.contentInitPage()
+				c.widgetType = ContentType
+				// 记录
+				*c.recHistoryCommandChan <- c.listEntries[c.listWidget.SelectedRow].command.String()
+			}
+		}
+		return c.contentWidget, false, false
+	}
+
+	c.handlerMap["<Down>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		if len(c.listWidget.Rows) > 0 {
+			if c.widgetType == ListType {
+				c.listWidget.ScrollDown()
+				return c.listWidget, false, false
+			} else {
+				c.contentDownPage()
+				return c.contentWidget, false, false
+			}
+		} else {
+			return c.listWidget, false, false
+		}
+	}
+
+	c.handlerMap["<Up>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		if len(c.listWidget.Rows) > 0 {
+			if c.widgetType == ListType {
+				c.listWidget.ScrollUp()
+				return c.listWidget, false, false
+			} else {
+				c.contentUpPage()
+				return c.contentWidget, false, false
+			}
+		} else {
+			return c.listWidget, false, false
+		}
+	}
+
+	c.handlerMap["<Left>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		c.setColor()
+		if c.widgetType == ListType {
+			return c.listWidget, false, false
+		} else {
+			return c.contentWidget, false, false
+		}
+	}
+
+	c.handlerMap["<Right>"] = func(c *Content) (ui.Drawable, bool, bool) {
+		cursor = 1
+		c.setColor()
+		if c.widgetType == ListType {
+			return c.listWidget, true, true
+		} else {
+			return c.contentWidget, true, true
+		}
+	}
+}
+
+func (c *Content) randomPick() {
+	idx := rand.Intn(len(c.listEntries))
+	c.listWidget.SelectedRow = idx
 }
 
 // 加载并解析文件
@@ -210,6 +301,7 @@ func (c *Content)reset() {
 	c.widgetType = ListType
 }
 
+
 // 第一个bool表示要不要下一个组件渲染，第二个bool表示是不是调换了输入框
 func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 	c.setColor()
@@ -218,58 +310,13 @@ func (c *Content) HandleEvent(e ui.Event) (ui.Drawable, bool, bool) {
 		case "<C-c>":
 			ui.Close()
 			os.Exit(-1)
-		case "<C-r>":
-			c.reset()
-			c.loadContent()
-			return c.listWidget, false, false
-		case "<Enter>":
-			if len(c.listWidget.Rows) > 0 {
-				if c.widgetType == ListType {
-					c.contentInitPage()
-					c.widgetType = ContentType
-					// 记录
-					*c.recHistoryCommandChan <- c.listEntries[c.listWidget.SelectedRow].command.String()
-				}
-			}
-			return c.contentWidget, false, false
-		case "<Down>":
-			if len(c.listWidget.Rows) > 0 {
-				if c.widgetType == ListType {
-					c.listWidget.ScrollDown()
-					return c.listWidget, false, false
-				} else {
-					c.contentDownPage()
-					return c.contentWidget, false, false
-				}
-			}
-		case "<Up>":
-			if len(c.listWidget.Rows) > 0 {
-				if c.widgetType == ListType {
-					c.listWidget.ScrollUp()
-					return c.listWidget, false, false
-				} else {
-					c.contentUpPage()
-					return c.contentWidget, false, false
-				}
-			}
-		case "<Left>":
-			c.setColor()
-			if c.widgetType == ListType {
-				return c.listWidget, false, false
-			} else {
-				return c.contentWidget, false, false
-			}
-		case "<Right>":
-			cursor = 1
-			c.setColor()
-			if c.widgetType == ListType {
-				return c.listWidget, true, true
-			} else {
-				return c.contentWidget, true, true
-			}
 		default:
-			c.reset()
-			return c.listWidget, true, false
+			if handler, ok := c.handlerMap[e.ID]; ok {
+				return handler(c)
+			} else {
+				c.reset()
+				return c.listWidget, true, false
+			}
 		}
 	}
 	return c.listWidget, false, false
