@@ -167,7 +167,12 @@ func (c *Content) register() {
 }
 
 func (c *Content) randomPick() {
-	idx := rand.Intn(len(c.listEntries))
+	var idx int
+	if len(c.listEntries) == 0 {
+		idx = rand.Intn(len(c.listEntries))
+	} else {
+		idx = rand.Intn(len(c.listWidget.Rows))
+	}
 	c.listWidget.SelectedRow = idx
 }
 
